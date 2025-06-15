@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8g Gold Price Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f6f6f6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .gold-header {
+            background-color: #FFC107;
+            color: #212529;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        .price-card {
+            background-color: #FFF8E1;
+            border: 1px solid #FFD700;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: gray;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="gold-header text-center">
+        <h1>🟡 8g Gold Price Tracker</h1>
+        <p class="lead">Current and historical prices for 8 grams of gold</p>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="price-card">
+                    <h3>Current 8g Gold Price</h3>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h2 id="current-price-inr">Loading...</h2>
+                            <p id="current-date">As of: Loading...</p>
+                        </div>
+                        <div>
+                            <p id="current-price-usd">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="price-card">
+                    <h3>Price Statistics (Last Year)</h3>
+                    <div class="row">
+                        <div class="col-6">
+                            <p><strong>Average:</strong> <span id="avg-price">Loading...</span></p>
+                            <p><strong>Minimum:</strong> <span id="min-price">Loading...</span></p>
+                        </div>
+                        <div class="col-6">
+                            <p><strong>Maximum:</strong> <span id="max-price">Loading...</span></p>
+                            <p><strong>30-Day Change:</strong> <span id="monthly-change">Loading...</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h3>Price History (Last 30 Days)</h3>
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h3>Recent Prices</h3>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Price (INR)</th>
+                                    <th>Price (USD)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="price-table">
+                                <tr>
+                                    <td colspan="3" class="text-center">Loading data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Made with 💛 using Python & Flask
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Fetch gold price data
+        async function fetchGoldData() {
+            try {
+                const response = await fetch('/api/gold-price');
+                const data = await response.json();
+                
+                // Update current price
+                document.getElementById('current-price-inr').textContent = `₹${data.current_price_inr.toFixed(2)} INR`;
+                document.getElementById('current-price-usd').textContent = `$${data.current_price_usd.toFixed(2)} USD`;
+                document.getElementById('current-date').textContent = `As of: ${data.current_date}`;
+                
+                // Update statistics
+                document.getElementById('avg-price').textContent = `₹${data.statistics.average.toFixed(2)} INR`;
+                document.getElementById('min-price').textContent = `₹${data.statistics.minimum.toFixed(2)} INR`;
+                document.getElementById('max-price').textContent = `₹${data.statistics.maximum.toFixed(2)} INR`;
+                
+                // Update monthly change with color
+                const changeElement = document.getElementById('monthly-change');
+                const change = data.statistics.monthly_change;
+                const changePercent = data.statistics.monthly_change_percent;
+                
+                if (change >= 0) {
+                    changeElement.innerHTML = `<span style="color:green">▲ ₹${change.toFixed(2)} (${changePercent.toFixed(2)}%)</span>`;
+                } else {
+                    changeElement.innerHTML = `<span style="color:red">▼ ₹${Math.abs(change).toFixed(2)} (${changePercent.toFixed(2)}%)</span>`;
+                }
+                
+                // Update price table
+                const tableBody = document.getElementById('price-table');
+                tableBody.innerHTML = '';
+                
+                data.historical_data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.date}</td>
+                        <td>₹${item.price_inr.toFixed(2)}</td>
+                        <td>$${item.price_usd.toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                
+                // Create chart
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                const labels = data.historical_data.map(item => item.date);
+                const prices = data.historical_data.map(item => item.price_inr);
+                
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '8g Gold Price (INR)',
+                            data: prices,
+                            borderColor: '#FFD700',
+                            backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error fetching gold data:', error);
+                document.getElementById('current-price-inr').textContent = 'Error loading data';
+            }
+        }
+        
+        // Load data when page loads
+        window.addEventListener('DOMContentLoaded', fetchGoldData);
+    </script>
+</body>
+</html>
